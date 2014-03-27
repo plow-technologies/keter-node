@@ -1,0 +1,44 @@
+Name:                   keter-node
+Version:                0.1.0
+Author:                 Scott Murphy <scottmurphy09@gmail.com>
+Maintainer:             Scott Murphy <scottmurphy09@gmail.com>
+License:                BSD3
+License-File:           LICENSE
+-- Synopsis:               
+-- Description:            
+Cabal-Version:          >= 1.10
+Build-Type:             Simple
+
+Library
+  Default-Language:     Haskell2010
+  HS-Source-Dirs:       src
+  GHC-Options:          -Wall
+  Exposed-Modules:      Keter.Node
+                        Keter.Node.Types
+  Other-Modules:        Keter.Node.Internal
+                        
+  Build-Depends:        base >= 4 && < 5
+                      , keter == 1.2.1
+                      , containers == 0.5.0.0
+                      , unordered-containers ==  0.2.3.3
+                      , vector == 0.10.9.1
+                      , system-filepath == 0.4.9
+                      , system-fileio  ==  0.3.12
+                      , aeson         == 0.7.0.2
+                      , yaml          == 0.8.8.1
+                      , data-default == 0.5.3
+                      , basic-prelude == 0.3.6.0
+                     
+Test-Suite spec
+  Type:                 exitcode-stdio-1.0
+  Default-Language:     Haskell2010
+  Hs-Source-Dirs:       src
+                      , test
+  Ghc-Options:          -Wall
+  Main-Is:              Spec.hs
+  Build-Depends:        base
+                      , hspec
+
+Source-Repository head
+  Type:                 git
+--  Location:             
