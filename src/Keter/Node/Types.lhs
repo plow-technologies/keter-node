@@ -2,7 +2,11 @@
 \begin{code}
 
 {-# LANGUAGE OverloadedStrings, NoImplicitPrelude, NoRecordWildCards, DeriveGeneric #-}
-module Keter.Node.Types where
+module Keter.Node.Types 
+( KeterNodeConfig 
+, knCfgNodes 
+, knCfgKeterConfig
+) where
 
 
 
@@ -68,8 +72,13 @@ KeterNode Specific Types
 
 \begin{code}
 
+newtype KeterNode = KeterNode {unKeterNode :: FilePath}
+    deriving (Generic)
 
-
+data KeterNodeConfig = KeterNodeConfig { 
+       knCfgNodes :: [KeterNode]
+     , knCfgKeterConfig :: KeterConfig
+}
 
 \end{code}
 
@@ -94,7 +103,7 @@ defaultPort =  NonEmptyVector (LPInsecure "*" 3000) V.empty
 
 emptyKeterConfig :: KeterConfig
 emptyKeterConfig =  KeterConfig
-        { kconfigDir = "./keterTest"
+        { kconfigDir = "./defautl-keter-node-root"
         , kconfigPortPool = emptyPortPool
         , kconfigListeners = defaultPort
         , kconfigSetuid = Nothing

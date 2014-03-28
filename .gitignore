@@ -6,5 +6,6 @@ cabal-dev
 *.chs.h
 *sandbox*
 *~
-*#
+*keterTest*
+*#*
 .virthualenv

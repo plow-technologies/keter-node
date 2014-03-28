@@ -38,6 +38,17 @@ Test-Suite spec
   Main-Is:              Spec.hs
   Build-Depends:        base
                       , hspec
+                      , keter 
+                      , containers 
+                      , unordered-containers 
+                      , vector 
+                      , system-filepath 
+                      , system-fileio  
+                      , aeson         
+                      , yaml          
+                      , data-default 
+                      , basic-prelude 
+
 
 Source-Repository head
   Type:                 git
