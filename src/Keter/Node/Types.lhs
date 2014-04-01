@@ -1,170 +1,181 @@
 
-\begin{code}
 
-{-# LANGUAGE OverloadedStrings, NoImplicitPrelude, NoRecordWildCards, DeriveGeneric #-}
-module Keter.Node.Types 
-( KeterNodeConfig 
-, knCfgNodes 
-, knCfgKeterConfig
-) where
+> {-# LANGUAGE OverloadedStrings, NoImplicitPrelude, NoRecordWildCards, DeriveGeneric #-}
+
+> module Keter.Node.Types where
 
 
 
-\end{code}
 
 CorePrelude is not something that should stay in this library but sure is nice for development!
 Control Libraries
 
-\begin{code}
 
-import CorePrelude
-import Control.Monad 
-import GHC.Generics
-\end{code}
+> import CorePrelude
+> import Control.Monad 
+> import GHC.Generics
 
 
 More standard File System, and configuration libraries
 
-\begin{code}
+> import Data.Yaml
+> import Data.Yaml.FilePath
+> import Filesystem                (createTree, isFile, rename,listDirectory)
+> import Filesystem.Path.CurrentOS (directory, encodeString, (<.>),(</>),empty,toText,fromText)
+> import Data.Aeson
+>        
 
-import Data.Yaml
-import Data.Yaml.FilePath
-import Filesystem                (createTree, isFile, rename)
-import Filesystem.Path.CurrentOS (directory, encodeString, (<.>),(</>),empty)
-import Data.Aeson
-
-\end{code}
-        
 Good Containers to bring along
 
-\begin{code} 
+> 
+>
+> import qualified Data.HashMap.Strict       as H 
+> import qualified Data.Map                  as Map
+> import qualified Data.Set                  as S
+> import qualified Data.Vector               as V
 
-import qualified Data.HashMap.Strict       as H 
-import qualified Data.Map                  as Map
-import qualified Data.Set                  as S
-import qualified Data.Vector               as V
-
-\end{code}
 
 Keter Specific stuff
 
 
 
-\begin{code} 
-
-import Keter.Types
-import Keter.Main
-import Keter.App
-import Data.Conduit.Process.Unix  -- Totally a keter package now
-import qualified Keter.PortPool            as PortPool
-import qualified Codec.Archive.TempTarball as TempFolder
-import qualified Keter.HostManager         as HostMan
 
 
-import Data.Default
+> import Keter.Types
+> import Keter.Main
+> import Keter.App
+> import Keter.AppManager
+> import Data.Conduit.Process.Unix  -- Totally a keter package now
+> import qualified Keter.PortPool            as PortPool
+> import qualified Codec.Archive.TempTarball as TempFolder
+> import qualified Keter.HostManager         as HostMan
+> 
+> 
+> import Data.Default
+> 
 
-\end{code}
 
 --------------------------------------------------
 --------------------------------------------------
+Most of the KeterNode types are just wrappers to simplify the Keter Types for 
+this library's use.
 
+--------------------------------------------------
+--------------------------------------------------
 KeterNode Specific Types
 
-\begin{code}
-
-newtype KeterNode = KeterNode {unKeterNode :: FilePath}
-    deriving (Generic)
-
-data KeterNodeConfig = KeterNodeConfig { 
-       knCfgNodes :: [KeterNode]
-     , knCfgKeterConfig :: KeterConfig
-}
-
-\end{code}
+a KeterNode is a file path that can be serialized, and represents a *.keter tarball for 
+a binary that will make the base for a running Node.
 
 
 
-Empty and default declarations for various Keter Objects used to create nodes, 
-most notably the BackgroundConfig
-
-\begin{code}
-emptyTempFolder :: IO TempFolder.TempFolder 
-emptyTempFolder = TempFolder.setup   $ (kconfigDir emptyKeterConfig) </> "temp" 
-
-emptyPortPool :: PortSettings 
-emptyPortPool = PortSettings [] 
-
-emptyPlugins :: [Plugin]
-emptyPlugins = [] 
 
 
-defaultPort :: NonEmptyVector ListeningPort
-defaultPort =  NonEmptyVector (LPInsecure "*" 3000) V.empty
+> newtype KeterNode = KeterNode {unKeterNode :: FilePath}
+>     deriving (Generic,Show,Eq)
+> 
+> instance ToJSON KeterNode where 
+>   toJSON = (\kn -> object [label .= (obj kn)])
+>     where 
+>       label :: Text 
+>       label = "KeterNode"
+>       obj :: KeterNode -> Value
+>       obj kn = toJSON $ toText (unKeterNode kn)
+>                    
+> 
+> instance FromJSON KeterNode where 
+>     parseJSON (Object v) = KeterNode <$> 
+>                            (v .: "KeterNode" >>= return.fromText)
+>     parseJSON _ = fail "Expecting Object, KeterNode"
 
-emptyKeterConfig :: KeterConfig
-emptyKeterConfig =  KeterConfig
-        { kconfigDir = "./defautl-keter-node-root"
-        , kconfigPortPool = emptyPortPool
-        , kconfigListeners = defaultPort
-        , kconfigSetuid = Nothing
-        , kconfigBuiltinStanzas = V.empty
-        , kconfigIpFromHeader = False
-        }
 
-
-simpleManager :: IO AppStartConfig
-simpleManager = do 
-  processTracker <- initProcessTracker
-  tf <-  emptyTempFolder 
-  hostman <- HostMan.start
-  portpool <- PortPool.start emptyPortPool
-  let appStartConfig = AppStartConfig
-                       { ascTempFolder = tf
-                       , ascSetuid = Nothing
-                       , ascProcessTracker = processTracker
-                       , ascHostManager = hostman
-                       , ascPortPool = portpool
-                       , ascPlugins = emptyPlugins
-                       , ascLog = (\_ -> return () ) 
-                       , ascKeterConfig = emptyKeterConfig
-                       }
-  return appStartConfig
+An ActiveKeterNodeId is the Text generated after a KeterNode has been put through the encoder
 
 
 
-\end{code}
+> newtype ActiveKeterNodeId = ActiveKeterNodeId { unKID :: Text } 
+>     deriving (Show,Eq,Generic) 
+> 
+> instance ToJSON ActiveKeterNodeId where 
+> instance FromJSON ActiveKeterNodeId where 
 
-Note Bundle Config looks like this 
 
-``` haskell
-instance ToJSON BundleConfig -- Defined in `Keter.Types.V10'
-instance ParseYamlFile BundleConfig -- Defined in `Keter.Types.V10'
-instance ToCurrent BundleConfig -- Defined in `Keter.Types.V10'
-```
 
-\begin{code}
+KeterNodeChan give the nodeId (for termination and status) as well as the path back to the node
 
-sampleBundleConfig :: BundleConfig
-sampleBundleConfig = BundleConfig (V.fromList [defStanza]) H.empty
-            
-\end{code}
+> data KeterNodeChan = KeterNodeChan { knrAID :: ActiveKeterNodeId
+>                                     , knrAddress :: Text}
 
-\begin{code} 
-         
-defFP :: FilePath
-defFP = ""<.> "" </> "" 
 
-defStanza :: Stanza port
-defStanza = StanzaBackground (defBackgroundConfig defFP)
+KeterNodeConfig is where the KeterNode that have been added to an Application are stored, 
+In addition to that, the Keter Config which sets up how the application will be ran is stored here too.
 
-defBackgroundConfig :: FilePath -> BackgroundConfig
-defBackgroundConfig fp = BackgroundConfig
-                      { bgconfigExec = fp
-                      , bgconfigArgs = V.empty
-                      , bgconfigEnvironment = Map.empty
-                      , bgconfigRestartCount = LimitedRestarts 2
-                      , bgconfigRestartDelaySeconds = 10
-                      }
 
-\end{code}
+> data KeterNodeConfig = KeterNodeConfig { 
+>        knCfgNodes :: S.Set KeterNode
+>      , knCfgKeterConfig :: KeterConfig
+>      , knCfgRoot :: FilePath
+> }
+
+
+instance Default KeterNodeConfig where 
+    def = KeterNodeConfig {
+            knCfgNodes = S.empty
+          , knCfgKeterConfig = emptyKeterConfig
+          , knCfgRoot = "" <.>"" </>"keter-node-root"
+          }
+
+
+
+KeterNodeWatcher 
+--------------------------------------------------
+A Node wrapper for AppManager
+
+Plus the lookup table for running KeterNodes by  Ket
+
+
+> type KeterNodeMap = Map KeterNode (S.Set ActiveKeterNodeId)
+> 
+> data KeterNodeWatcher = KeterNodeWatcher { 
+>        knmAppManger :: AppManager 
+>      , knmAppTemp   :: TempFolder.TempFolder
+>      , knmAppNodes  :: KeterNodeMap 
+>     } 
+
+
+
+> newtype KeterNodeError = KeterNodeError { unKeterNodeError :: Text }
+>     deriving (Eq,Show,Generic)
+> 
+> instance ToJSON KeterNodeError where 
+> 
+> instance FromJSON KeterNodeError where 
+
+
+KeterNodeArgs wrap arguments to pass to spawned Nodes
+
+
+
+
+> newtype KeterNodeArgs = KeterNodeArgs { unKeterNodeArgs :: (Vector Text ) }
+>     deriving (Eq, Show, Generic) 
+> 
+> instance ToJSON KeterNodeArgs where 
+> 
+> instance FromJSON KeterNodeArgs where 
+
+
+KeterNodeCmd is a pairing of a post route and argument body to be sent to a
+KeterNode 
+
+
+
+
+> data KeterNodeCmd = KeterNodeCmd { 
+>       kncArgs :: Value, 
+>       kncRoute :: Text
+> }deriving (Show,Generic)
+> 
+> instance ToJSON KeterNodeCmd where 
+> instance FromJSON KeterNodeCmd where 
 

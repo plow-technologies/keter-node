@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedStrings, NoImplicitPrelude #-}
-module Keter.NodeSpec (main, spec) where
+module Keter.Node.ConfigurationSpec (main, spec) where
 import Data.Traversable.Compat
 import Keter.Node
 import Keter.Node.Types
 import Keter.Node.Internal
+import Keter.Node.Configuration
 import Prelude hiding (FilePath)
 import Keter.App
 import Keter.AppManager
@@ -26,23 +27,7 @@ spec = do
 
 
 
--- testAppManager :: IO AppManager
--- testAppManager = do 
---   asc <- simpleWatcher
-
---   initialize (\_ -> print ("log"::String))  asc   
-
--- testFP :: FilePath
--- testFP = "" <.> ""</> "toyproc" <.> "keter"
-
--- testManagerUse :: IO () 
--- testManagerUse = do 
---   apmgr <- testAppManager 
---   addApp apmgr testFP
---   addApp apmgr testFP
---   print ("App Created!"  :: String)
---   threadDelay 10000000 >> terminateApp apmgr ("toyproc") >> print ("app terminated" :: String)
-
+-- | simple test spawn node for doing configuration work. 
 testSpawnNode = do 
   eknw <- setupNode Nothing 
   traverse tFcn eknw 
@@ -53,5 +38,3 @@ testSpawnNode = do
       kna = KeterNodeArgs V.empty
       tFcn' = flip.flip spawnNode
       
-           -- KeterNode "impulse-node" <.> "keter" 
-           -- KeterNodeArgs V.empty $ eknw 
