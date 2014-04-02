@@ -23,12 +23,11 @@ More standard File System, and configuration libraries
 > import Filesystem                (createTree, isFile, rename,listDirectory)
 > import Filesystem.Path.CurrentOS (directory, encodeString, (<.>),(</>),empty,toText,fromText)
 > import Data.Aeson
->        
-
+        
 Good Containers to bring along
 
-> 
->
+ 
+
 > import qualified Data.HashMap.Strict       as H 
 > import qualified Data.Map                  as Map
 > import qualified Data.Set                  as S
@@ -49,10 +48,9 @@ Keter Specific stuff
 > import qualified Keter.PortPool            as PortPool
 > import qualified Codec.Archive.TempTarball as TempFolder
 > import qualified Keter.HostManager         as HostMan
-> 
-> 
+ 
+ 
 > import Data.Default
-> 
 
 
 --------------------------------------------------
@@ -118,13 +116,53 @@ In addition to that, the Keter Config which sets up how the application will be 
 > }
 
 
-instance Default KeterNodeConfig where 
-    def = KeterNodeConfig {
-            knCfgNodes = S.empty
-          , knCfgKeterConfig = emptyKeterConfig
-          , knCfgRoot = "" <.>"" </>"keter-node-root"
-          }
 
+The Keter Node Stanza Config are the configuration options keter uses when it opens up a bundle and re-writes the config file 
+
+> data KeterNodeStanzaConfig = KeterNodeStanzaConfig { 
+>          knsCfgHosts :: (S.Set KeterNodeHost)
+>        , knsCfgPorts :: (S.Set KeterNodePort)
+> } deriving (Eq,Show,Generic,Ord) 
+
+> newtype KeterNodeHost = KeterNodeHost  { getKNHost :: Text} deriving (Eq,Show,Generic,Ord)
+> newtype KeterNodePort = KeterNodePort  { getKNPort :: Int} deriving (Eq,Show,Generic,Ord)
+
+> instance ParseYamlFile  KeterNodeStanzaConfig where 
+>     parseYamlFile basedir = withObject "keter-node" $ \o -> do
+>        (hosts) <- do
+>                   hs <- o .: "hosts"
+>                   case hs of
+>                           [] -> fail "Must provide at least one host"
+>                           h:hs' -> return . S.fromList  $  KeterNodeHost <$> hs
+>        (ports) <- do
+>                   ps <- o .: "ports"
+>                   case ps of
+>                           [] -> fail "Must provide at least one port"
+>                           p:ps' -> return . S.fromList $  KeterNodePort <$> ps
+>        KeterNodeStanzaConfig  <$> return hosts 
+>                               <*> return ports
+
+
+> instance ToJSON KeterNodeStanzaConfig where 
+>     toJSON (KeterNodeStanzaConfig hs ps) = keterNodeObject 
+>         where keterNodeObject = object ["keter-node" .= (object ["hosts" .= toJSON (getKNHost <$> S.toList hs) , "ports" .= toJSON (getKNPort <$> S.toList ps)] )]
+
+
+
+> instance FromJSON KeterNodeStanzaConfig where
+>     parseJSON = withObject "keter-node" $ \o -> do
+>                                         (hosts) <- return . S.fromList . (fmap KeterNodeHost) =<< o .: "hosts" 
+>                                         (ports) <- return . S.fromList . (fmap KeterNodePort) =<< o .: "ports"
+>                                         KeterNodeStanzaConfig  <$> return hosts 
+>                                                                <*> return ports
+
+>                             
+> instance ToJSON KeterNodeHost where
+> instance ToJSON KeterNodePort where
+
+
+> instance FromJSON KeterNodeHost where
+> instance FromJSON KeterNodePort where
 
 
 KeterNodeWatcher 
@@ -159,9 +197,9 @@ KeterNodeArgs wrap arguments to pass to spawned Nodes
 
 > newtype KeterNodeArgs = KeterNodeArgs { unKeterNodeArgs :: (Vector Text ) }
 >     deriving (Eq, Show, Generic) 
-> 
+ 
 > instance ToJSON KeterNodeArgs where 
-> 
+ 
 > instance FromJSON KeterNodeArgs where 
 
 
@@ -174,8 +212,8 @@ KeterNode
 > data KeterNodeCmd = KeterNodeCmd { 
 >       kncArgs :: Value, 
 >       kncRoute :: Text
-> }deriving (Show,Generic)
-> 
+> } deriving (Show,Generic)
+ 
 > instance ToJSON KeterNodeCmd where 
 > instance FromJSON KeterNodeCmd where 
-
+     

@@ -1,0 +1,8 @@
+keter-node:
+hosts:
+  - www.aacs-us.com
+  - www.plowtech.net
+ports:
+  - 1000.0
+  - 1001.0
+

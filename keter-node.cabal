@@ -30,6 +30,8 @@ Library
                       , yaml          == 0.8.8.1
                       , data-default == 0.5.3
                       , basic-prelude == 0.3.6.0
+                      , text == 1.0.0.1
+                      , bytestring == 0.10.0.2
                      
 Test-Suite spec
   Type:                 exitcode-stdio-1.0
@@ -51,6 +53,8 @@ Test-Suite spec
                       , yaml          
                       , data-default 
                       , basic-prelude 
+                      , text
+                      , bytestring
 
 
 Source-Repository head

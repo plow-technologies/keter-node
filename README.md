@@ -45,6 +45,25 @@ the id is returned to you.  Which means you can `killNode` or `getNodeStatus`.
 cabal configure --enable-tests && cabal build && cabal test
 ```
 
-## Contributing
+# keter-node *.yaml variables 
 
-TODO: Write contribution instructions here
+## keter-node has it's own language for file creation which is usally just a set of looser constraints on the regular Yaml type.
+
+
+
+## The following are variables that may be added to your keter file 
+<table>
+<tr>
+  <th> Variable Name </th> <th> Use </th> <th> example </th>
+</tr>
+<tr>
+  <td> <code> $exec </code> </td> <td> Replaces the executable file with a new one named uniquely </td> <td> <code> exec: $exec </code> </td>
+</tr>
+<tr>
+  <td> <code>$port</code> </td> <td> Pick one of the ports in the port range</td> <td><code> host: www.aacs-us.com:$port</code> </td>
+</tr>
+<tr>
+  <td> <code>$host</code> </td> <td> pick a host from the host range </td> <td><code>host: $host:$port</code></td>
+</tr>
+
+
