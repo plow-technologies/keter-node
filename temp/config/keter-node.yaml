@@ -5,4 +5,4 @@ hosts:
 ports:
   - 1000.0
   - 1001.0
-
+exec: dist/build/impulse-node/impulse-node.out

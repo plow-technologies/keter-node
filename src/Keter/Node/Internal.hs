@@ -5,6 +5,7 @@ module Keter.Node.Internal
     ,simpleWatcher
     , defaultPaths
     , sampleBundleConfig
+    , activeNodes
     , tmpFilePath
     , nodeTypeFilePath
     ) where
@@ -55,15 +56,17 @@ defaultPaths :: [FilePath]
 defaultPaths = [an,knl,nt,tmp] 
     where
       f t = "" <.> "" </> t
-      an  = f "active-nodes"
+      an  = activeNodes
       knl = f "keter-node-logs"
       nt  = nodeTypeFilePath
       tmp = tmpFilePath
 
-                 
-tmpFilePath = "" <.> "" </> "node-temp"
 
-nodeTypeFilePath = "" <.> "" </> "node-types"
+
+activeNodes = "active-nodes"                 
+tmpFilePath = "node-temp"
+
+nodeTypeFilePath = "node-types"
 --------------------------------------------------
 
 -- Defaults For the simpleWatcher
@@ -77,7 +80,7 @@ defaultPort =  NonEmptyVector (LPInsecure "*" 2066) V.empty
 
 defaultKeterConfig :: KeterConfig
 defaultKeterConfig =  KeterConfig
-        { kconfigDir = "./active-nodes"
+        { kconfigDir = activeNodes
         , kconfigPortPool = emptyPortPool
         , kconfigListeners = defaultPort
         , kconfigSetuid = Nothing

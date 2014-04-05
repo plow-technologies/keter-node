@@ -122,8 +122,10 @@ The Keter Node Stanza Config are the configuration options keter uses when it op
 > data KeterNodeStanzaConfig = KeterNodeStanzaConfig { 
 >          knsCfgHosts :: (S.Set KeterNodeHost)
 >        , knsCfgPorts :: (S.Set KeterNodePort)
+>        , knsCfgExec :: (KeterNodeExec)
 > } deriving (Eq,Show,Generic,Ord) 
 
+> newtype KeterNodeExec = KeterNodeExec  { getKNExec :: Text} deriving (Eq,Show,Generic,Ord)
 > newtype KeterNodeHost = KeterNodeHost  { getKNHost :: Text} deriving (Eq,Show,Generic,Ord)
 > newtype KeterNodePort = KeterNodePort  { getKNPort :: Int} deriving (Eq,Show,Generic,Ord)
 
@@ -139,13 +141,18 @@ The Keter Node Stanza Config are the configuration options keter uses when it op
 >                   case ps of
 >                           [] -> fail "Must provide at least one port"
 >                           p:ps' -> return . S.fromList $  KeterNodePort <$> ps
+>        (exec) <- do
+>                   e <- o .: "exec"
+>                   return . KeterNodeExec $ e
+
 >        KeterNodeStanzaConfig  <$> return hosts 
 >                               <*> return ports
+>                               <*> return exec
 
 
 > instance ToJSON KeterNodeStanzaConfig where 
->     toJSON (KeterNodeStanzaConfig hs ps) = keterNodeObject 
->         where keterNodeObject = object ["keter-node" .= (object ["hosts" .= toJSON (getKNHost <$> S.toList hs) , "ports" .= toJSON (getKNPort <$> S.toList ps)] )]
+>     toJSON (KeterNodeStanzaConfig hs ps e) = keterNodeObject 
+>         where keterNodeObject = object ["keter-node" .= (object ["hosts" .= toJSON (getKNHost <$> S.toList hs) , "ports" .= toJSON (getKNPort <$> S.toList ps),"exec" .= toJSON (getKNExec e)] )]
 
 
 
@@ -153,17 +160,20 @@ The Keter Node Stanza Config are the configuration options keter uses when it op
 >     parseJSON = withObject "keter-node" $ \o -> do
 >                                         (hosts) <- return . S.fromList . (fmap KeterNodeHost) =<< o .: "hosts" 
 >                                         (ports) <- return . S.fromList . (fmap KeterNodePort) =<< o .: "ports"
+>                                         (exec) <- return . KeterNodeExec =<< o .: "exec"
 >                                         KeterNodeStanzaConfig  <$> return hosts 
 >                                                                <*> return ports
+>                                                                <*> return exec
 
 >                             
 > instance ToJSON KeterNodeHost where
 > instance ToJSON KeterNodePort where
+> instance ToJSON KeterNodeExec where
 
 
 > instance FromJSON KeterNodeHost where
 > instance FromJSON KeterNodePort where
-
+> instance FromJSON KeterNodeExec where
 
 KeterNodeWatcher 
 --------------------------------------------------

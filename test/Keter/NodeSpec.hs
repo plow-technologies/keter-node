@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, NoImplicitPrelude #-}
 module Keter.NodeSpec (main, spec) where
-import Data.Traversable.Compat
+import Data.Traversable
 import Keter.Node
 import Keter.Node.Types
 import Keter.Node.Internal
@@ -8,10 +8,11 @@ import Prelude hiding (FilePath)
 import Keter.App
 import Keter.AppManager
 import Keter.Types
+import qualified Shelly as Sh
 import Control.Concurrent
 import Test.Hspec
 import qualified Data.Vector as V
-
+import Filesystem (getWorkingDirectory,isFile,setWorkingDirectory)
 import Filesystem.Path.CurrentOS (directory, encodeString, (<.>),(</>),empty)
 
 main :: IO ()
@@ -29,9 +30,7 @@ spec = do
 -- testAppManager :: IO AppManager
 -- testAppManager = do 
 --   asc <- simpleWatcher
-
 --   initialize (\_ -> print ("log"::String))  asc   
-
 -- testFP :: FilePath
 -- testFP = "" <.> ""</> "toyproc" <.> "keter"
 
@@ -43,8 +42,10 @@ spec = do
 --   print ("App Created!"  :: String)
 --   threadDelay 10000000 >> terminateApp apmgr ("toyproc") >> print ("app terminated" :: String)
 
+
 testSpawnNode = do 
   eknw <- setupNode Nothing 
+  print "setupDone"
   traverse tFcn eknw 
     where 
       tFcn :: KeterNodeWatcher -> IO (Either KeterNodeError ())
@@ -52,6 +53,4 @@ testSpawnNode = do
       kn = KeterNode $ "impulse-node" <.> "keter"
       kna = KeterNodeArgs V.empty
       tFcn' = flip.flip spawnNode
-      
-           -- KeterNode "impulse-node" <.> "keter" 
-           -- KeterNodeArgs V.empty $ eknw 
+

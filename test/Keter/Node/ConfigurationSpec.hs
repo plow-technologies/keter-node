@@ -49,6 +49,6 @@ testSpawnNode = do
       kna = KeterNodeArgs V.empty
       tFcn' = flip.flip spawnNode
       
-expectedKeterNodeStanzaConfig = KeterNodeStanzaConfig (S.fromList (KeterNodeHost <$> ["www.aacs-us.com","www.plowtech.net"]) ) (S.fromList (KeterNodePort <$> [1000,1001]))
+expectedKeterNodeStanzaConfig = KeterNodeStanzaConfig (S.fromList (KeterNodeHost <$> ["www.aacs-us.com","www.plowtech.net"]) ) (S.fromList (KeterNodePort <$> [1000,1001]) ) (KeterNodeExec "TestApp")
 
 testConfigFile = "" <.> "" </> "temp" </> "config" </> "keter-node" <.> "yaml"

@@ -1,6 +1,5 @@
 stanzas:
        - type: webapp
-       - exec: $exec ../dist/build/impulse-node/impulsenode/$execname
-       - args: $args
-       - 
+       - exec: $exec
+       - host: $host:$port
        
