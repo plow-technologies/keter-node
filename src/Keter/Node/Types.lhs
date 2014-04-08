@@ -70,7 +70,7 @@ a binary that will make the base for a running Node.
 
 
 > newtype KeterNode = KeterNode {unKeterNode :: FilePath}
->     deriving (Generic,Show,Eq)
+>     deriving (Generic,Show,Eq,Ord)
 > 
 > instance ToJSON KeterNode where 
 >   toJSON = (\kn -> object [label .= (obj kn)])
@@ -91,8 +91,8 @@ An ActiveKeterNodeId is the Text generated after a KeterNode has been put throug
 
 
 
-> newtype ActiveKeterNodeId = ActiveKeterNodeId { unKID :: Text } 
->     deriving (Show,Eq,Generic) 
+> newtype ActiveKeterNodeId = ActiveKeterNodeId { unKID :: Int } 
+>     deriving (Show,Eq,Generic,Ord) 
 > 
 > instance ToJSON ActiveKeterNodeId where 
 > instance FromJSON ActiveKeterNodeId where 
@@ -117,17 +117,21 @@ In addition to that, the Keter Config which sets up how the application will be 
 
 
 
-The Keter Node Stanza Config are the configuration options keter uses when it opens up a bundle and re-writes the config file 
+he Keter Node Stanza Config are the configuration options keter uses when it opens up a bundle and re-writes the config file 
 
 > data KeterNodeStanzaConfig = KeterNodeStanzaConfig { 
 >          knsCfgHosts :: (S.Set KeterNodeHost)
->        , knsCfgPorts :: (S.Set KeterNodePort)
+>        , knsCfgIds :: (S.Set KeterNodeId)
 >        , knsCfgExec :: (KeterNodeExec)
 > } deriving (Eq,Show,Generic,Ord) 
 
 > newtype KeterNodeExec = KeterNodeExec  { getKNExec :: Text} deriving (Eq,Show,Generic,Ord)
 > newtype KeterNodeHost = KeterNodeHost  { getKNHost :: Text} deriving (Eq,Show,Generic,Ord)
-> newtype KeterNodePort = KeterNodePort  { getKNPort :: Int} deriving (Eq,Show,Generic,Ord)
+
+This type is used with the exec filename to create the ActiveKeterNodeId, which stores
+running procs
+
+> newtype KeterNodeId = KeterNodeId  { getKNId :: Int} deriving (Eq,Show,Generic,Ord)
 
 > instance ParseYamlFile  KeterNodeStanzaConfig where 
 >     parseYamlFile basedir = withObject "keter-node" $ \o -> do
@@ -137,10 +141,10 @@ The Keter Node Stanza Config are the configuration options keter uses when it op
 >                           [] -> fail "Must provide at least one host"
 >                           h:hs' -> return . S.fromList  $  KeterNodeHost <$> hs
 >        (ports) <- do
->                   ps <- o .: "ports"
->                   case ps of
->                           [] -> fail "Must provide at least one port"
->                           p:ps' -> return . S.fromList $  KeterNodePort <$> ps
+>                   ns <- o .: "nodeids"
+>                   case ns of
+>                           [] -> fail "Must provide at least one node id"
+>                           n:ns' -> return . S.fromList $  KeterNodeId <$> ns
 >        (exec) <- do
 >                   e <- o .: "exec"
 >                   return . KeterNodeExec $ e
@@ -152,14 +156,14 @@ The Keter Node Stanza Config are the configuration options keter uses when it op
 
 > instance ToJSON KeterNodeStanzaConfig where 
 >     toJSON (KeterNodeStanzaConfig hs ps e) = keterNodeObject 
->         where keterNodeObject = object ["keter-node" .= (object ["hosts" .= toJSON (getKNHost <$> S.toList hs) , "ports" .= toJSON (getKNPort <$> S.toList ps),"exec" .= toJSON (getKNExec e)] )]
+>         where keterNodeObject = object ["keter-node" .= (object ["hosts" .= toJSON (getKNHost <$> S.toList hs) , "ports" .= toJSON (getKNId <$> S.toList ps),"exec" .= toJSON (getKNExec e)] )]
 
 
 
 > instance FromJSON KeterNodeStanzaConfig where
 >     parseJSON = withObject "keter-node" $ \o -> do
 >                                         (hosts) <- return . S.fromList . (fmap KeterNodeHost) =<< o .: "hosts" 
->                                         (ports) <- return . S.fromList . (fmap KeterNodePort) =<< o .: "ports"
+>                                         (ports) <- return . S.fromList . (fmap KeterNodeId) =<< o .: "ports"
 >                                         (exec) <- return . KeterNodeExec =<< o .: "exec"
 >                                         KeterNodeStanzaConfig  <$> return hosts 
 >                                                                <*> return ports
@@ -167,12 +171,12 @@ The Keter Node Stanza Config are the configuration options keter uses when it op
 
 >                             
 > instance ToJSON KeterNodeHost where
-> instance ToJSON KeterNodePort where
+> instance ToJSON KeterNodeId where
 > instance ToJSON KeterNodeExec where
 
 
 > instance FromJSON KeterNodeHost where
-> instance FromJSON KeterNodePort where
+> instance FromJSON KeterNodeId where
 > instance FromJSON KeterNodeExec where
 
 KeterNodeWatcher 
@@ -185,9 +189,10 @@ Plus the lookup table for running KeterNodes by  Ket
 > type KeterNodeMap = Map KeterNode (S.Set ActiveKeterNodeId)
 > 
 > data KeterNodeWatcher = KeterNodeWatcher { 
->        knmAppManger :: AppManager 
+>        knmAppManager :: AppManager 
 >      , knmAppTemp   :: TempFolder.TempFolder
 >      , knmAppNodes  :: KeterNodeMap 
+>      , knmCfg       :: KeterNodeConfig
 >     } 
 
 

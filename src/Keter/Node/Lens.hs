@@ -42,3 +42,4 @@ makeClassy_ ''RedirectConfig
 makeClassy_ ''WebAppConfig 
 makeClassy_ ''ReverseProxyConfig
 makeClassy_ ''BackgroundConfig
+makeClassy_ ''KeterNodeWatcher

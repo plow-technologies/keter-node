@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, NoImplicitPrelude #-}
 module Keter.NodeSpec (main, spec) where
 import Data.Traversable
+import Data.Default
 import Keter.Node
 import Keter.Node.Types
 import Keter.Node.Internal
@@ -25,8 +26,6 @@ spec = do
                            rslt <- setupNode Nothing
                            True `shouldBe` False
 
-
-
 -- testAppManager :: IO AppManager
 -- testAppManager = do 
 --   asc <- simpleWatcher
@@ -43,14 +42,29 @@ spec = do
 --   threadDelay 10000000 >> terminateApp apmgr ("toyproc") >> print ("app terminated" :: String)
 
 
+
 testSpawnNode = do 
   eknw <- setupNode Nothing 
   print "setupDone"
-  traverse tFcn eknw 
+  eeknw <- (traverse tFcn eknw )
+  return $ (eeknw >>= (\eknw -> eknw))
     where 
-      tFcn :: KeterNodeWatcher -> IO (Either KeterNodeError ())
-      tFcn = tFcn' kn kna
+      tFcn :: KeterNodeWatcher -> IO (Either KeterNodeError KeterNodeWatcher)
+      tFcn = tFcn' kn kna 
       kn = KeterNode $ "impulse-node" <.> "keter"
       kna = KeterNodeArgs V.empty
       tFcn' = flip.flip spawnNode
+
+testSpawnSecondNode knw = spawnNode knw (KeterNode $ "impulse-node" <.> "keter") (KeterNodeArgs V.empty) 
+
+testStartNode = do 
+  eknw <- setupNode Nothing 
+  print "setupDone" >> getWorkingDirectory >>= print
+  traverse tFcn eknw 
+    where 
+      tFcn :: KeterNodeWatcher -> IO () -- Either KeterNodeError FilePath)
+      tFcn knw = addApp (knmAppManager knw) ("/home/scott/programs/src/keter-node/keter-node-root/active-nodes/impulse-node.keter") 
+      kn = KeterNode $ "impulse-node" <.> "keter"
+      kna = KeterNodeArgs V.empty
+
 

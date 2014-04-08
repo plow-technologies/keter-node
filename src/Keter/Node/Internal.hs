@@ -13,9 +13,9 @@ module Keter.Node.Internal
 
 -- Control
 import CorePrelude
-import Control.Monad 
-import Filesystem   (createTree, isFile, rename,listDirectory,setWorkingDirectory)
-import Filesystem.Path.CurrentOS 
+-- import Control.Monad 
+-- import Filesystem   (createTree, isFile, rename,listDirectory,setWorkingDirectory)
+-- import Filesystem.Path.CurrentOS 
 -- Containers
 
 import qualified Data.HashMap.Strict       as H 
@@ -24,7 +24,7 @@ import qualified Data.Set                  as S
 import qualified Data.Vector               as V
 
 -- Conversion
-import Data.Yaml
+-- import Data.Yaml
 import Data.Yaml.FilePath
 
 
@@ -32,9 +32,9 @@ import Data.Yaml.FilePath
 
 import Keter.Node.Types
 import Keter.Types
-import Keter.Main
+-- import Keter.Main
 import Keter.App
-import Keter.AppManager
+-- import Keter.AppManager
 import Data.Conduit.Process.Unix  -- Totally a keter package now
 import qualified Keter.PortPool            as PortPool
 import qualified Codec.Archive.TempTarball as TempFolder
@@ -62,10 +62,13 @@ defaultPaths = [an,knl,nt,tmp]
       tmp = tmpFilePath
 
 
-
+activeNodes :: FilePath
 activeNodes = "active-nodes"                 
+
+tmpFilePath :: FilePath
 tmpFilePath = "node-temp"
 
+nodeTypeFilePath :: FilePath
 nodeTypeFilePath = "node-types"
 --------------------------------------------------
 
@@ -103,8 +106,8 @@ simpleWatcher = do
                        , ascHostManager = hostman
                        , ascPortPool = portpool
                        , ascPlugins = emptyPlugins
-                       , ascLog = (\_ -> return () ) 
-                       , ascKeterConfig = defaultKeterConfig
+                       , ascLog = (\l -> print l ) 
+                       , ascKeterConfig = defaultKeterConfig                       
                        }
   return appStartConfig
 
@@ -125,7 +128,7 @@ sampleBundleConfig = BundleConfig (V.fromList [defStanza]) H.empty
 
 
 emptyPortPool :: PortSettings 
-emptyPortPool = PortSettings [] 
+emptyPortPool = PortSettings [3000 .. 3100] 
 
 emptyPlugins :: [Plugin]
 emptyPlugins = [] 

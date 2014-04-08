@@ -1,5 +1,5 @@
 stanzas:
-       - type: webapp
-       - exec: $exec
-       - host: $host:$port
+    - type: webapp
+      exec: $exec
+      host: $host
        

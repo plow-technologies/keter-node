@@ -7,14 +7,15 @@ module Keter.Node.Configuration ( buildKeterNode, decodeKeterNodeStanzaConfig
 -- Control Libraries 
 import BasicPrelude 
 import Data.Traversable
-import Data.Default
-import Control.Monad
+-- import Data.Default
+-- import Control.Monad
 import qualified Control.Lens as L 
+import qualified Data.Set.Lens as L
 
 -- System Libraries 
 import Filesystem (getWorkingDirectory,isFile,setWorkingDirectory)
-import Filesystem.Path.CurrentOS (directory,fromText,toText, encodeString, (<.>),(</>),empty,filename,directory,collapse)
-import qualified Codec.Archive.TempTarball as TempFolder
+import Filesystem.Path.CurrentOS (fromText,toText,collapse) -- ,directory, encodeString, empty,directory,filename,(<.>),(</>))
+-- import qualified Codec.Archive.TempTarball as TempFolder
 import qualified Shelly as Sh
 
 -- MonoMorphs
@@ -33,30 +34,39 @@ import qualified Data.Set as S
 
 
 -- Project specific
-import Keter.App
-import Keter.AppManager
-import Keter.Types
+--import Keter.App
+-- import Keter.AppManager
+-- import Keter.Types
 
 
 -- Local Libraries
 import Keter.Node.Internal
 import Keter.Node.Types
-import Keter.Node.Tests
+-- import Keter.Node.Tests
 import Keter.Node.LensComb
 
 
 decodeKeterNodeStanzaConfig :: FilePath -> IO ( Either ParseException KeterNodeStanzaConfig)
 decodeKeterNodeStanzaConfig = decodeFileRelative   
 
-decodeKeterStanzaConfig :: FilePath -> IO (Either ParseException BundleConfig) 
-decodeKeterStanzaConfig = decodeFileRelative
+-- decodeKeterStanzaConfig :: FilePath -> IO (Either ParseException BundleConfig) 
+-- decodeKeterStanzaConfig = decodeFileRelative
 
 -- | buildKeterNode parses the keter-node.yaml file and uses it to modify the keter.yaml file 
 -- put the file in the config directory, right next to the keter.yaml file 
 
- -- | Create 'Context' from association list.
+getNextId :: KeterNodeWatcher -> KeterNode -> Set KeterNodeId -> KeterNodeId
+getNextId knw kn all' =  minNode
+    where minNode :: KeterNodeId
+          minNode = S.findMin inactive 
+          inactive = S.difference all' common
+          common = S.intersection all' (L.over L.setmapped (\(ActiveKeterNodeId k)-> KeterNodeId k) active )
+          active = fromMaybe S.empty (L.view (_activenodestype kn)  knw)
+          
 
-buildKeterNode fp = do
+ -- | Create 'Context' from association list.
+buildKeterNode :: KeterNodeWatcher -> KeterNode -> FilePath -> IO (Either Text (FilePath,ActiveKeterNodeId))
+buildKeterNode knw kn fp = do
   wd <- getWorkingDirectory
   let newWd = wd </> fp
       config = newWd </> "config" 
@@ -64,24 +74,20 @@ buildKeterNode fp = do
       kfilePth = config </> "keter" <.> "yaml"
   putStrLn "Done Getting Directories"
   eKNSC <- decodeKeterNodeStanzaConfig knfilePth  
-  print kfilePth
   setWorkingDirectory newWd 
-  putStrLn "Done decoding node"  
-  eKSC <- decodeKeterStanzaConfig kfilePth
-  putStrLn "Done decoding keter"
   case eKNSC of 
-    Left e -> print e 
+    Left e -> return . Left . show $ e
     Right knf -> do 
-               print "before append " >> (print $ getKNExec . knsCfgExec $ knf)
-               let h = S.findMin . knsCfgHosts $ knf 
-                   p = S.findMin . knsCfgPorts $ knf 
-                   e = knsCfgExec $ knf 
+               print ("before append "::Text) >> (print $ getKNExec . knsCfgExec $ knf)
+               let e = knsCfgExec $ knf 
+                   h = S.findMin . knsCfgHosts $ knf 
+                   p = getNextId knw kn (knsCfgIds $ knf)
                    h' = getKNHost $ h -- convert everything to text 
-                   p' = show.getKNPort $ p
+                   p' = show.getKNId $ p
                    e' = T.append (T.append (getKNExec e) p') h' --make new executable nameg
                    mp = M.fromList [("host",h' )  -- Build the lookup map
-                                   ,("port" ,p')
-                                   ,("exec" , e')] 
+                                   ,("nodeids" ,p')
+                                   ,("exec" , T.append "../" $ e')] 
                    context :: ContextA Maybe
                    context t = M.lookup t mp
                kfile <- readFile kfilePth
@@ -91,13 +97,19 @@ buildKeterNode fp = do
                  Just txt -> do                      
                       writeFile kfilePth (TL.toStrict txt)
                       putStrLn "Done writing files"
-                      finally (rewriteNodeBinary wd knf e' >> putStrLn "Done rewriting exec") (setWorkingDirectory wd)
+                      enkf <- onException (rewriteNodeBinary wd knf e') (return . Left $ ("Error"::Text))
+                      setWorkingDirectory wd 
+                      return $ (\nkf -> (nkf, ActiveKeterNodeId . getKNId $ p)) <$> enkf 
+--                      (rewriteNodeBinary wd knf e' >> putStrLn "Done rewriting exec") 
+
 
 
 -- | Change the name of the binary so it is unique
-rewriteNodeBinary :: FilePath -> KeterNodeStanzaConfig -> T.Text-> IO () 
+
+rewriteNodeBinary :: FilePath
+                           -> KeterNodeStanzaConfig -> Text -> IO (Either Text FilePath)
 rewriteNodeBinary wd knf fnew = do
-  print "incoming filename" >> print fnew
+  print ("incoming filename"::Text) >> print fnew
   let
       kold = fromText.getKNExec.knsCfgExec $ knf 
       knew = fromText fnew
@@ -107,26 +119,31 @@ rewriteNodeBinary wd knf fnew = do
   
   case oldDir == newDir of 
     False -> do 
-        isFile kold >>= (\b -> unless b (print "File Failure oldFile -->" >> print kold))
-        isFile knew >>= (\b -> unless b (print "File Failure newFile -->" >> print knew))
-        unless (oldDir == newDir ) (print "Dirs don't match" >> print oldDir >> print newDir)  
+        isFile kold >>= (\b -> unless b (print ("File Failure oldFile -->"::Text) >> print kold))
+        isFile knew >>= (\b -> unless b (print ("File Failure newFile -->"::Text) >> print knew))
+        unless (oldDir == newDir ) (print ("Dirs don't match"::Text) >> print oldDir >> print newDir)  
         fail "Error, invalid keter transformation"  
     True -> do 
       let kxform = oldDir </> newFname --transformed keter binary name 
-      Sh.shelly $ runCopyTransaction wd kold kxform
-      return ()      
+      Sh.shelly $ (runCopyTransaction wd kold kxform) 
 
 
 -- | Copy the exec file name appended with an appended host
+runCopyTransaction :: FilePath
+                            -> FilePath -> FilePath -> Sh.Sh (Either Text FilePath)
 runCopyTransaction wd kold kxform = do 
-  kold' <- Sh.absPath kold
-  kxform' <- Sh.absPath kxform
-  liftIO $  print "copy kold --> " >> print (kold') >> print "to kxform --> " >> print (kxform')
-  liftIO $  print "working directory" >> getWorkingDirectory >>= print >> print "other idr" >> print wd
-  Sh.cp kold' (collapse kxform')
-  Sh.rm kold'
-  let newKeterFile = ((filename kxform') <.> "keter")
-  traverse (\f -> Sh.run "tar" ["-czvf",f,"config","dist"])  (toText newKeterFile)
+--  wd'   <- liftIO $ getWorkingDirectory 
+--  liftIO $  print "copy kold --> " >> print (wd' </> kold) >> print "to kxform --> " >> print (collapse (wd' </> kxform))
+--  liftIO $  print "working directory" >> print wd'>> print "other idr" >> print wd
+  Sh.cp (collapse kold) (collapse kxform)
+--  liftIO $ print ("deleting" >> print kold
+  Sh.rm kold
+  let newKeterFile = ((filename kxform) <.> "keter")
+  liftIO $ print ("making new tar"::Text) >> print newKeterFile
+  enf <- traverse (\f -> Sh.run "tar" ["-czvf",f,"config","dist"])  (toText newKeterFile)
+  liftIO $ print ("copying keter to correct dir --> " ::Text)>> print (wd </> activeNodes)
   Sh.cp newKeterFile (wd </> activeNodes)
+  liftIO $ print ("leaving" :: Text)
+  return $ enf >>= (\_-> Right newKeterFile) -- put the new filename in if everything went right  
   
 

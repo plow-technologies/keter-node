@@ -73,3 +73,5 @@ _stanzaWebHost :: (Applicative f, HasBundleConfig t) =>
 _stanzaWebHost = _bconfigStanzas.traverse._StanzaWebApp._waconfigApprootHost
 
 
+-- | return a Set of active nodes corresponding to the keternode
+_activenodestype kn = (_knmAppNodes.(at kn))
