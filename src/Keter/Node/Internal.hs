@@ -128,7 +128,7 @@ sampleBundleConfig = BundleConfig (V.fromList [defStanza]) H.empty
 
 
 emptyPortPool :: PortSettings 
-emptyPortPool = PortSettings [3000 .. 3100] 
+emptyPortPool = PortSettings []
 
 emptyPlugins :: [Plugin]
 emptyPlugins = [] 

@@ -15,7 +15,7 @@ import Test.Hspec
 import qualified Data.Vector as V
 import Filesystem (getWorkingDirectory,isFile,setWorkingDirectory)
 import Filesystem.Path.CurrentOS (directory, encodeString, (<.>),(</>),empty)
-
+    
 main :: IO ()
 main = hspec spec
 
@@ -29,7 +29,7 @@ spec = do
 -- testAppManager :: IO AppManager
 -- testAppManager = do 
 --   asc <- simpleWatcher
---   initialize (\_ -> print ("log"::String))  asc   
+--   initialize (\_ -> print ("log"::String))  asc   b
 -- testFP :: FilePath
 -- testFP = "" <.> ""</> "toyproc" <.> "keter"
 
@@ -52,10 +52,11 @@ testSpawnNode = do
       tFcn :: KeterNodeWatcher -> IO (Either KeterNodeError KeterNodeWatcher)
       tFcn = tFcn' kn kna 
       kn = KeterNode $ "impulse-node" <.> "keter"
-      kna = KeterNodeArgs V.empty
+      kna = KeterNodeArgs (V.fromList ["-p","3030"])
       tFcn' = flip.flip spawnNode
 
-testSpawnSecondNode knw = spawnNode knw (KeterNode $ "impulse-node" <.> "keter") (KeterNodeArgs V.empty) 
+testSpawnSecondNode knw = spawnNode knw (KeterNode $ "impulse-node"
+ <.> "keter") (KeterNodeArgs V.empty) 
 
 
 -- | Hard coded start node 

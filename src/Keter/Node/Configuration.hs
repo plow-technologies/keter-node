@@ -86,7 +86,7 @@ buildKeterNode knw kn fp = do
                    p' = show.getKNId $ p
                    e' = T.append (T.append (getKNExec e) p') h' --make new executable nameg
                    mp = M.fromList [("host",h' )  -- Build the lookup map
-                                   ,("nodeids" ,p')
+                                   ,("nodeid" ,p')
                                    ,("exec" , T.append "../" $ e')] 
                    context :: ContextA Maybe
                    context t = M.lookup t mp
