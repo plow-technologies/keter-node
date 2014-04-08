@@ -72,7 +72,7 @@ setupNode' knc = do
   void $ traverse createTree defaultPaths
   tmpFolder <- TempFolder.setup $ tmpFilePath
   asc <- simpleWatcher
-  appMan <- initialize (\l -> print ("log --> "::String) >> print l )  asc   
+  appMan <- initialize (\l -> (print "Working Directory" >>= print) >> print "logmsg">> print l )  asc   
   return $ Right (KeterNodeWatcher {  knmAppManager = appMan 
                                     , knmAppNodes = M.empty 
                                     , knmAppTemp  = tmpFolder
@@ -100,7 +100,7 @@ spawnNode knw kn knargs = isKeterNode knw kn >>= (\ekn -> do
                                                                print "changing working directory to..." >> print wd 
                                                                setWorkingDirectory wd
                                                                print "add app"
-                                                               void $ (\(app,_) -> addApp (knmAppManager knw) (activeNodes </> app) ) `traverse` et
+                                                               void $ (\(app,_) -> addApp (knmAppManager knw) (wd </> activeNodes </> app) ) `traverse` et
                                                                print ("added file --> "::Text) >> print et
                                                                et' <- return (over _Left (\e -> KeterNodeError e ) et) 
                                                                setWorkingDirectory wd

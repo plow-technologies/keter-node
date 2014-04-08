@@ -57,6 +57,8 @@ testSpawnNode = do
 
 testSpawnSecondNode knw = spawnNode knw (KeterNode $ "impulse-node" <.> "keter") (KeterNodeArgs V.empty) 
 
+
+-- | Hard coded start node 
 testStartNode = do 
   eknw <- setupNode Nothing 
   print "setupDone" >> getWorkingDirectory >>= print
