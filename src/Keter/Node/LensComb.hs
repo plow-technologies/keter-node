@@ -15,7 +15,8 @@ import Keter.Types
 import Keter.Node.Lens
 import Keter.Node.Types
 
-
+import qualified Data.Map.Strict as M
+import qualified Data.Set as S
 
 {-|
 @
@@ -44,7 +45,7 @@ data WebAppConfig port = WebAppConfig
     , waconfigPort        :: !port
     }
     deriving Show
-
+n
 
 
 makeClassy_ ''BundleConfig 
@@ -75,3 +76,21 @@ _stanzaWebHost = _bconfigStanzas.traverse._StanzaWebApp._waconfigApprootHost
 
 -- | return a Set of active nodes corresponding to the keternode
 _activenodestype kn = (_knmAppNodes.(at kn))
+
+
+
+-- | Pair of ISO makers to facilitate app termination
+
+_isoAT = iso _anMapToTriple _tripleSetToANMap
+
+_anMapToTriple :: Map KeterNodeExec (S.Set ActiveKeterNodeId) -> Set (KeterNodeExec,KeterNodeHost,KeterNodeId)
+_anMapToTriple knm = M.foldlWithKey fldFcn S.empty knm 
+    where fldFcn :: S.Set (KeterNodeExec,KeterNodeHost,KeterNodeId) -> KeterNodeExec -> S.Set ActiveKeterNodeId -> S.Set (KeterNodeExec,KeterNodeHost,KeterNodeId)
+          fldFcn triples kne aknSet = let newTripleSet = S.map (\(ActiveKeterNodeId h i) -> (kne,KeterNodeHost h, KeterNodeId i)) aknSet
+                                      in S.union newTripleSet triples
+_tripleSetToANMap :: Set (KeterNodeExec,KeterNodeHost,KeterNodeId) -> Map KeterNodeExec (S.Set ActiveKeterNodeId)
+_tripleSetToANMap kns = S.foldl' fldFcn M.empty kns 
+    where fldFcn mp ((kne,(KeterNodeHost h),(KeterNodeId i) ))  = over (at kne) (insFcn (ActiveKeterNodeId h i))  mp
+          insFcn :: ActiveKeterNodeId -> Maybe (S.Set ActiveKeterNodeId) -> Maybe (S.Set ActiveKeterNodeId)
+          insFcn aknid Nothing = Just . S.insert aknid $ S.empty
+          insFcn aknid (Just s) = Just . S.insert aknid $ s

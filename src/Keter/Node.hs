@@ -32,8 +32,9 @@ import Keter.Node.LensComb
 -- Project specific
 import Keter.App
 import Keter.AppManager
-import Filesystem (getWorkingDirectory)
-import Filesystem.Path.CurrentOS (directory, encodeString, (<.>),(</>),empty,toText)
+import Filesystem (getWorkingDirectory,listDirectory)
+
+import Filesystem.Path.CurrentOS (directory, encodeString, (<.>),(</>),empty,toText,dirname,replaceExtension)
 import qualified Codec.Archive.TempTarball as TempFolder
 
 
@@ -61,16 +62,18 @@ Example Code:
 -- Unlike keter, the Node enviornment always starts empty
 
 setupNode :: (Maybe KeterNodeConfig) -> IO (Either KeterNodeError KeterNodeWatcher)
-setupNode Nothing = setupNode' def
+setupNode Nothing = getWorkingDirectory >>= (\wd -> setupNode' def{knCfgRoot = wd </> "keter-node-root"}) 
 setupNode (Just knc) = setupNode' knc
 
 setupNode' :: KeterNodeConfig -> IO (Either KeterNodeError KeterNodeWatcher) 
 setupNode' knc = do 
   wd <- getWorkingDirectory
-  unless ( wd == (knCfgRoot knc))  (createDirectory True (knCfgRoot knc) >> print "creating root")
+  unless ( (wd) == (knCfgRoot $ knc))  (createDirectory True (wd </> (knCfgRoot knc)) >> print "creating root")
   setWorkingDirectory (knCfgRoot knc)
+  wd' <- getWorkingDirectory
   void $ traverse createTree defaultPaths
   tmpFolder <- TempFolder.setup $ tmpFilePath
+
   asc <- simpleWatcher
   appMan <- initialize (\l -> (print "Working Directory" >>= print) >> print "logmsg">> print l )  asc   
   return $ Right (KeterNodeWatcher {  knmAppManager = appMan 
@@ -97,13 +100,9 @@ spawnNode knw kn knargs = isKeterNode knw kn >>= (\ekn -> do
                                                                      (nodeTypeFilePath </> (unKeterNode kn ))
                                                                      fp 
                                                                      (buildKeterNode knw kn)
-                                                               print "changing working directory to..." >> print wd 
                                                                setWorkingDirectory wd
-                                                               print "add app"
                                                                void $ (\(app,_) -> addApp (knmAppManager knw) (wd </> activeNodes </> app) ) `traverse` et
-                                                               print ("added file --> "::Text) >> print et
                                                                et' <- return (over _Left (\e -> KeterNodeError e ) et) 
-                                                               setWorkingDirectory wd
                                                                return $ (\(_,i) -> over (_activenodestype kn) (sFcn i) knw) <$> et' )
                                                                    where 
                                                                      sFcn :: ActiveKeterNodeId -> Maybe (S.Set ActiveKeterNodeId)  -> Maybe (S.Set ActiveKeterNodeId)
@@ -114,11 +113,29 @@ spawnNode knw kn knargs = isKeterNode knw kn >>= (\ekn -> do
 
 -- | Grab a map with a singleKey, given by the KeterNode, containing all running instances of a KeterNode
 --   Leave the Key out to return all the Nodes running
-listNodes :: KeterNodeWatcher -> (Maybe KeterNode) -> IO (Either KeterNodeError (KeterNodeMap) )
-listNodes = undefined
-            
-endNode :: KeterNodeWatcher -> ActiveKeterNodeId -> KeterNodeCmd -> IO (Either KeterNodeError ())
-endNode = undefined
+listNodes :: KeterNodeWatcher -> KeterNode -> Maybe (S.Set ActiveKeterNodeId)
+listNodes knw  kn =  view (_activenodestype kn) knw
+
+
+-- | Pass a Keter Node to kill all running Processes of that type
+-- | Pass a Nothing to killall processes of all types
+-- endNode :: KeterNodeWatcher -> (Maybe KeterNode) -> IO (Either KeterNodeError ())
+endNode knw (Just kn) = do 
+  let ekn =(toText.unKeterNode $ kn)
+      mknset = view (_activenodestype kn) knw
+      
+  (\fp -> terminateApp (knmAppManager knw) fp ) `traverse` (toText.unKeterNode $ kn)
+  return () --  over _Left (\e -> KeterNodeError e) er 
+endNode knw Nothing = do 
+  let mp' = M.mapKeys (KeterNodeExec . either (\_ -> "") id . toText . (flip replaceExtension "out") . unKeterNode) (knmAppNodes knw) :: (M.Map KeterNodeExec (S.Set ActiveKeterNodeId))
+      mt  = (S.map knSuffixTuple)._anMapToTriple $ mp' :: (S.Set Text)
+  print "list map" >> print mt 
+  void $ traverse (terminateApp (knmAppManager knw))  (S.toList mt) 
+    where 
+      eFcn (Left (KeterNodeError e )) (Left e') = Left . KeterNodeError $ (e <> e')
+      eFcn (Right _) (Left e') = Left . KeterNodeError $ e' 
+      eFcn a (Right _) = a 
+--   return $ over _Left (\e -> KeterNodeError e) e_ 
 
 -- Just put the Nothing in
 -- initializeKeterNOdeDef :: IO

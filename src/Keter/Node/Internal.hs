@@ -65,6 +65,7 @@ defaultPaths = [an,knl,nt,tmp]
 activeNodes :: FilePath
 activeNodes = "active-nodes"                 
 
+
 tmpFilePath :: FilePath
 tmpFilePath = "node-temp"
 
@@ -136,7 +137,7 @@ emptyPlugins = []
             
          
 defFP :: FilePath
-defFP = ""<.> "" </> "" 
+defFP = "keter-node-root" 
 
 defStanza :: Stanza port
 defStanza = StanzaBackground (defBackgroundConfig defFP)

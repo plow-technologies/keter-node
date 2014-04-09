@@ -19,16 +19,16 @@ spec :: Spec
 spec = do
   describe "toJSON KeterNode" $ do
     it "should convert to a JSON string" $ do                                  
-      (encode testKeterNode) `shouldBe` "{\"KeterNode\":{\"Right\":\"./\"}}"
+      (encode testKeterNode) `shouldBe` "{\"KeterNode\":\"./\"}"
   describe "fromJSON KeterNode" $ do
     it "should convert to a KeterNode" $ do                                  
-      (Just testKeterNode) `shouldBe` (decode "{\"KeterNode\":{\"Right\":\"./\"}}")
+      (decode "{\"KeterNode\":\"./\"}") `shouldBe` (Just testKeterNode)
   describe "toJSON ActiveKeterNodeId" $ do
     it "should convert to a JSON string" $ do                                  
-      (encode testActiveKeterNodeId) `shouldBe` ("{\"unKID\":\"this is a test\"}")
+      (encode testActiveKeterNodeId) `shouldBe` ("{\"unKID\":2023,\"unKNHost\":\"localhost\"}")
   describe "fromJSON ActiveKeterNodeId" $ do
     it "should convert to an ActiveKeterNodeId " $ do                                  
-      (decode ("{\"unKID\":\"this is a test\"}")) `shouldBe` (Just testActiveKeterNodeId)
+      (decode ("{\"unKID\":2023}")) `shouldBe` (Just testActiveKeterNodeId)
 
 
 
@@ -36,7 +36,9 @@ spec = do
 testFilePath = ""<.> "" </> "" 
 testKeterNode = KeterNode testFilePath
 
+testDecode :: Either String KeterNode
+testDecode = eitherDecode "{\"unKID\":2023,\"unKNHost\":\"localhost\"}"
 
 testActiveKeterNodeId :: ActiveKeterNodeId 
-testActiveKeterNodeId = ActiveKeterNodeId "this is a test"
+testActiveKeterNodeId = ActiveKeterNodeId "localhost" 2023
                         

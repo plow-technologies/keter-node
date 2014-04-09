@@ -1,4 +1,6 @@
 dist
+*temp*
+*.keter*
 cabal-dev
 *.o
 *.hi

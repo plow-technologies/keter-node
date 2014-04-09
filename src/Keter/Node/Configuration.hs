@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings, NoImplicitPrelude, RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Keter.Node.Configuration ( buildKeterNode, decodeKeterNodeStanzaConfig
+module Keter.Node.Configuration ( buildKeterNode, decodeKeterNodeStanzaConfig,knSuffixFilename
+                                  ,knUnSuffixFileName,knSuffixTuple 
                                 ) where
 
 -- Control Libraries 
@@ -20,6 +21,7 @@ import qualified Shelly as Sh
 
 -- MonoMorphs
 import qualified Data.Text as T
+import qualified Data.Text.Read as T
 import qualified Data.Text.Lazy as TL
 
 -- Parsing
@@ -55,12 +57,12 @@ decodeKeterNodeStanzaConfig = decodeFileRelative
 -- | buildKeterNode parses the keter-node.yaml file and uses it to modify the keter.yaml file 
 -- put the file in the config directory, right next to the keter.yaml file 
 
-getNextId :: KeterNodeWatcher -> KeterNode -> Set KeterNodeId -> KeterNodeId
-getNextId knw kn all' =  minNode
+getNextId :: KeterNodeWatcher -> KeterNode -> KeterNodeHost-> Set KeterNodeId -> KeterNodeId
+getNextId knw kn knh all' =  minNode
     where minNode :: KeterNodeId
           minNode = S.findMin inactive 
           inactive = S.difference all' common
-          common = S.intersection all' (L.over L.setmapped (\(ActiveKeterNodeId k)-> KeterNodeId k) active )
+          common = S.intersection all' (L.over L.setmapped (\(ActiveKeterNodeId knh k )-> KeterNodeId k) active )
           active = fromMaybe S.empty (L.view (_activenodestype kn)  knw)
           
 
@@ -78,29 +80,67 @@ buildKeterNode knw kn fp = do
   case eKNSC of 
     Left e -> return . Left . show $ e
     Right knf -> do 
-               print ("before append "::Text) >> (print $ getKNExec . knsCfgExec $ knf)
+--               print ("before append "::Text) >> (print $ getKNExec . knsCfgExec $ knf)
                let e = knsCfgExec $ knf 
                    h = S.findMin . knsCfgHosts $ knf 
-                   p = getNextId knw kn (knsCfgIds $ knf)
+                   p = getNextId knw kn h (knsCfgIds $ knf)
                    h' = getKNHost $ h -- convert everything to text 
                    p' = show.getKNId $ p
-                   e' = T.append (T.append (getKNExec e) p') h' --make new executable nameg
+                   e' = knSuffixTuple (e, h, p) -- T.append (T.append (getKNExec e) p') h' --make new executable nameg
                    mp = M.fromList [("host",h' )  -- Build the lookup map
                                    ,("nodeid" ,p')
                                    ,("exec" , T.append "../" $ e')] 
                    context :: ContextA Maybe
                    context t = M.lookup t mp
                kfile <- readFile kfilePth
-               putStrLn "To the substituteA case"
+--               putStrLn "To the substituteA case"
                case substituteA kfile context of 
                  Nothing -> error "No File Read or invalid template var" 
                  Just txt -> do                      
                       writeFile kfilePth (TL.toStrict txt)
-                      putStrLn "Done writing files"
+--                      putStrLn "Done writing files"
                       enkf <- onException (rewriteNodeBinary wd knf e') (return . Left $ ("Error"::Text))
                       setWorkingDirectory wd 
-                      return $ (\nkf -> (nkf, ActiveKeterNodeId . getKNId $ p)) <$> enkf 
+                      return $ (\nkf -> (nkf, (ActiveKeterNodeId h'). getKNId $ p)) <$> enkf 
 --                      (rewriteNodeBinary wd knf e' >> putStrLn "Done rewriting exec") 
+
+
+-- | add a suffix to the executable name 
+knSuffixFilename ::  KeterNodeExec -> KeterNodeHost -> KeterNodeId -> Text 
+knSuffixFilename  (KeterNodeExec e) (KeterNodeHost h) (KeterNodeId i) = T.concat [e,h,show i]
+
+
+knSuffixTuple (e,h,i) = knSuffixFilename e h i
+-- |any 2 of the 3 items to retrieve the triple , expects non extensioned 'pure' name
+-- Runs as many checks as it can but when working with an incomplete case, that is limited
+knUnSuffixFileName ::  (Maybe KeterNodeExec) -> (Maybe KeterNodeHost) -> (Maybe KeterNodeId) -> Text -> Either KeterNodeError (KeterNodeExec,KeterNodeHost,KeterNodeId)
+knUnSuffixFileName  (Just ke@(KeterNodeExec e)) (Just kh@(KeterNodeHost h)) (Just ki@(KeterNodeId i)) f = case (T.stripSuffix h) =<< (T.stripSuffix (show i)  f) of
+                                                                                                  (Just rest)
+                                                                                                      |e == rest -> Right (ke,kh,ki)
+                                                                                                      |otherwise -> Left .  KeterNodeError $ "exec doesn't match" 
+                                                                                                  Nothing -> Left .  KeterNodeError $ "host or id doesn't match"
+knUnSuffixFileName Nothing (Just kh@(KeterNodeHost h))  (Just ki@(KeterNodeId i)) f = case (T.stripSuffix h) =<< (T.stripSuffix (show i) f) of
+                                                                                                      (Just rest) -> Right ((KeterNodeExec rest),kh,ki)
+                                                                                                      Nothing -> Left .  KeterNodeError $ "host or id doesn't match"
+
+
+knUnSuffixFileName (Just ke@(KeterNodeExec e)) Nothing  (Just ki@(KeterNodeId i)) f = case (T.stripPrefix e) =<< (T.stripSuffix (show i) f) of
+                                                                                                           (Just rest) -> Right (ke,KeterNodeHost rest ,ki)
+                                                                                                           Nothing -> Left .  KeterNodeError $ "host or id doesn't match"
+
+knUnSuffixFileName (Just ke@(KeterNodeExec e)) (Just kh@(KeterNodeHost h))  Nothing  f =  case (T.stripPrefix e f) >>= (T.stripPrefix h)  of 
+                                                                                                           (Just rest) -> (\r -> (ke,kh,KeterNodeId r)) <$> (rFcn rest)
+                                                                                                           Nothing -> Left .  KeterNodeError $ "host or id doesn't match"
+    where
+      rFcn :: Text -> Either KeterNodeError Int 
+      rFcn t = case (T.decimal  t) of
+                  (Right (i,_)) -> Right . fromInteger $ i
+                  Left e' -> Left . KeterNodeError . T.pack $ e'
+                  
+
+knUnSuffixFileName a b c  _ = Left . KeterNodeError $ "insufficient parameters provided, must have 2 of 3 to create triple" <> show a <> show b <> show c
+
+
 
 
 
@@ -109,7 +149,7 @@ buildKeterNode knw kn fp = do
 rewriteNodeBinary :: FilePath
                            -> KeterNodeStanzaConfig -> Text -> IO (Either Text FilePath)
 rewriteNodeBinary wd knf fnew = do
-  print ("incoming filename"::Text) >> print fnew
+--  print ("incoming filename"::Text) >> print fnew
   let
       kold = fromText.getKNExec.knsCfgExec $ knf 
       knew = fromText fnew

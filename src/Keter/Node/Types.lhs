@@ -78,7 +78,11 @@ a binary that will make the base for a running Node.
 >       label :: Text 
 >       label = "KeterNode"
 >       obj :: KeterNode -> Value
->       obj kn = toJSON $ toText (unKeterNode kn)
+>       obj kn = case toText (unKeterNode kn) of 
+>                  Right t -> toJSON t
+>                  Left e -> toJSON err
+>                      where err:: Text 
+>                            err = "Error decoding keternode, filename failure"
 >                    
 > 
 > instance FromJSON KeterNode where 
@@ -91,12 +95,17 @@ An ActiveKeterNodeId is the Text generated after a KeterNode has been put throug
 
 
 
-> newtype ActiveKeterNodeId = ActiveKeterNodeId { unKID :: Int } 
+> data ActiveKeterNodeId = ActiveKeterNodeId { 
+>                                              unKNHost :: Text,
+>                                              unKID :: Int
+>     } 
 >     deriving (Show,Eq,Generic,Ord) 
 > 
 > instance ToJSON ActiveKeterNodeId where 
+
 > instance FromJSON ActiveKeterNodeId where 
 
+                                      
 
 
 KeterNodeChan give the nodeId (for termination and status) as well as the path back to the node
@@ -232,3 +241,4 @@ KeterNode
 > instance ToJSON KeterNodeCmd where 
 > instance FromJSON KeterNodeCmd where 
      
+
